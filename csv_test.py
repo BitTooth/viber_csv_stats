@@ -1,8 +1,9 @@
 import csv
 
 out = open ("out.txt", "w")
+filename = "Nastya.csv"
 
-with open("Nastya.csv", "rb") as csvfile:
+with open(filename, "rb") as csvfile:
 	rdr = csv.reader(csvfile, skipinitialspace=True, quoting=csv.QUOTE_ALL)
 
 	for row in rdr:
