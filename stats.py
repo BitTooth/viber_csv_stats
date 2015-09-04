@@ -52,3 +52,20 @@ out.write("\nMy average message length: " + str(myAverageMsgLength) + '\n')
 out.write("Partner average message length: " + str(partnerAverageMsgLength) + '\n')
 
 ###############################################################################################################
+# Timeline stats
+
+timeline = {}
+
+for i in range(0, 24):
+	timeline[i] = 0
+
+for msg in messages:
+	timeline[msg._datetime.hour] = timeline[msg._datetime.hour] + 1
+
+
+out.write("\nTimeline of messages\n")
+for i in range(0, 24):
+	out.write(str(i) + ': ' + str(timeline[i]) + '\n')
+
+###############################################################################################################
+
