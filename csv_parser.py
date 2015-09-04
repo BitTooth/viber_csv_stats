@@ -4,8 +4,7 @@ import datetime
 class Message:
 	def __init__(self, author, date, time, message):
 		self._author = author
-		self._date = date
-		self._time = time
+		self._datetime = datetime.datetime.strptime(date + ' ' + time, "%d/%m/%Y %H:%M:%S")
 		self._message = message
 
 def isDateField(field):
@@ -19,7 +18,7 @@ def buildMessagesArray(filename, debugOutput = False):
 	messages = [] 		
 	prevMessage = None 	# previous message used for concat multiline messages
 
-	with open("Nastya.csv", "rb") as csvfile:
+	with open(filename, "rb") as csvfile:
 		rdr = csv.reader(csvfile, skipinitialspace=True, quoting=csv.QUOTE_ALL)
 
 		for row in rdr:
@@ -50,7 +49,7 @@ def buildMessagesArray(filename, debugOutput = False):
 	if debugOutput:
 		out = open ("debug.txt", "w")
 		for msg in messages:
-			out.write(msg._date + ' ' + msg._time + '\n' + msg._author + '\n' + msg._message)
+			out.write(str(msg._datetime) + '\n' + msg._author + '\n' + msg._message)
 			out.write("\n=========================================================================\n")
 
 	return messages
