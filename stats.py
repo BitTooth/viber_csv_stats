@@ -151,10 +151,17 @@ class Stats:
 
 # This module can be used as standalone script
 if __name__ == '__main__':
+	import sys 		# Use this only in standalone mode
+	if len(sys.argv) < 2:
+		print "Filename not specified. Use it as a first parameter"
+		exit()
+
+	filename = sys.argv[1]
+
 	out = open("stats.txt", "w")
 	stats = Stats()
 	print "Building simple stats..."
-	stats.build("Nastya.csv", True)
+	stats.build(filename, True)
 	stats.printSimpleStats(out)
 	print "Building timeline..."
 	stats.printTimeline(out)
