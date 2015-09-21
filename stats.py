@@ -1,6 +1,10 @@
 from csv_parser import buildMessagesArray
 import operator
 import datetime
+import plotly.plotly as pl
+from plotly.graph_objs import *
+import plotly.exceptions
+import collections as cols
 
 class WordCloudBuilder:
 	def __init__(self):
@@ -55,8 +59,10 @@ class Stats:
 		self.averageMessagesPerDay = 0
 		self.myMsgPercentage = 0
 		self.wordCloudBuilder = WordCloudBuilder()
+		self.statsName = ""
 
 	def build(self, filename, writeDebugLog = False):
+		self.statsName = filename[:-4]
 		self.builded = True
 		self.messages = buildMessagesArray(filename, writeDebugLog)
 
@@ -97,14 +103,14 @@ class Stats:
 
 		self.averageMessagesPerDay = self.totalMessagesCount / self.totalDaysCount
 
-	def buildTimeline(self):
+	def buildTimeline(self, date = None):
 		timeline = {}
 
 		for i in range(0, 24):
 			timeline[i] = 0
 
 		for msg in self.messages:
-			timeline[msg._datetime.hour] = timeline[msg._datetime.hour] + 1
+			timeline[msg._datetime.hour] += 1
 
 		return timeline
 
@@ -142,12 +148,73 @@ class Stats:
 		out.write("\nMy average message length: " + str(self.myMessagesAverageLength) + '\n')
 		out.write("Partner average message length: " + str(self.partnerMessagesAverageLength) + '\n')
 
-	def printTimeline(self, out):
+	def plotTimeline(self, out = None):
 		timeline = self.buildTimeline()
 
-		out.write("\nTimeline of messages\n")
-		for i in range(0, 24):
-			out.write(str(i) + ': ' + str(timeline[i]) + '\n')
+		data = Data([
+			Bar(
+				x = timeline.keys(),
+				y = timeline.values()
+			)
+		])
+		name = 'Timeline ' + self.statsName
+		plotUrl = self.__plot(data, name)
+
+		if out is not None:
+			out.write("\nTimeline of messages: " + plotUrl + "\n")
+
+	def plotMessageDistribution(self, out = None):
+		distribution = {}
+
+		for msg in self.messages:
+			date = str(msg._datetime.date())
+			date
+			if date in distribution.keys():
+				distribution[date] += 1
+			else:
+				distribution[date] = 1
+		sortedDistribution = cols.OrderedDict(sorted(distribution.items()))
+
+		data = Data([
+   			Scatter(
+        		x=sortedDistribution.keys(),
+        		y=sortedDistribution.values()
+    		)
+		])
+		name = 'Message distribution ' + self.statsName
+		plotUrl = self.__plot(data, name)
+
+		if out is not None:
+			out.write("message distribution plot: " + plotUrl + "\n")
+
+	def plotMessageTimeDistribution(self):
+		# build days array
+		days = set([])
+		for msg in messages:
+			days.add(msg._datetime.date())
+
+		hours = {}
+		for hour in range(0,24):
+			distribution = {}
+
+			for msg in self.messages:
+				if msg._datetime.hour == hour:
+					date = str(msg._datetime.date())
+					if date in distribution.keys():
+						distribution[date] += 1
+					else:
+						distribution[date] = 1
+			hours[hour] = cols.OrderedDict(sorted(distribution.items()))
+
+		print hours
+
+
+	def __plot(self, data, name):
+		try:
+			return pl.plot(data, fileopt='overwrite', auto_open=False, filename=name)
+		except plotly.exceptions.PlotlyError:
+			print "Plotly error"
+			return "Not builded"
 
 # This module can be used as standalone script
 if __name__ == '__main__':
@@ -162,21 +229,54 @@ if __name__ == '__main__':
 
 	buildDebug = True
 	buildWordsCloud = False
+	plotTimeline = False
+	plotMessageDistribution = False
+	plotTimeMessageDistribution = False
 	for arg in sys.argv[1:-1]:
+		if arg == '-all':
+			print 'All stats forced'
+			buildDebug = True
+			buildWordCloud = True
+			plotTimeline = True
+			plotMessageDistribution = True
+
 		if arg == '-nd' or arg == '-NoDebug':
 			print 'Debug output is turned off'
 			buildDebug = False
+
 		if arg == '-wc' or arg == '-WordsCloud':
 			print 'Words cloud will be builded'
 			buildWordsCloud = True
+
+		if arg == '-ptm' or arg == '-PlotTimeline'
+			print 'Timeline will be plotted'
+			plotTimeline = True
+
+		if arg = '-pmd' or arg == '-PlotMessageDistribution'
+			print 'MessageDistribution will be plotted'
+			plotMessageDistribution = True
+
+		if arg == '-ptmd' or arg == '-PlotTimeMessageDistribution':
+			print 'Message time distribution will be plotted'
+			plotTimeMessageDistribution = True
 
 	out = open("stats_" + filename[:-4] + ".txt", "w")
 	stats = Stats()
 	print "Building simple stats..."
 	stats.build(filename, buildDebug)
 	stats.printSimpleStats(out)
-	print "Building timeline..."
-	stats.printTimeline(out)
+
+	if plotTimeline:
+		print "Building timeline..."
+		stats.plotTimeline(out)
+
+	if plotMessageDistribution:
+		print "Plotting message distribution..."
+		stats.plotMessageDistribution(out)
+
+	if plotTimeMessageDistribution:
+		print "Plotting messages time distribution..."
+		stats.plotMessageTimeDistribution()
 
 	if buildWordsCloud:
 		print "Building total words cloud..."
