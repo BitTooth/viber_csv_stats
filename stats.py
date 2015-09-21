@@ -152,21 +152,33 @@ class Stats:
 # This module can be used as standalone script
 if __name__ == '__main__':
 	import sys 		# Use this only in standalone mode
-	if len(sys.argv) < 2:
+
+	paramsNum = len(sys.argv)
+	if paramsNum < 2:
 		print "Filename not specified. Use it as a first parameter"
 		exit()
 
-	filename = sys.argv[1]
+	filename = sys.argv[paramsNum - 1]
 
-	out = open("stats.txt", "w")
+	buildDebug = True
+	buildWordsCloud = False
+	for arg in sys.argv[1:-1]:
+		if arg == '-nd' or arg == '-NoDebug':
+			print 'Debug output is turned off'
+			buildDebug = False
+		if arg == '-wc' or arg == '-WordsCloud':
+			print 'Words cloud will be builded'
+			buildWordsCloud = True
+
+	out = open("stats_" + filename[:-4] + ".txt", "w")
 	stats = Stats()
 	print "Building simple stats..."
-	stats.build(filename, True)
+	stats.build(filename, buildDebug)
 	stats.printSimpleStats(out)
 	print "Building timeline..."
 	stats.printTimeline(out)
 
-	if False: # Don't do long job
+	if buildWordsCloud:
 		print "Building total words cloud..."
 		stats.buildTotalWordCloud(out)
 		print "Building my words cloud..."
