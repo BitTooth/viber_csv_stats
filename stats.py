@@ -60,6 +60,7 @@ class Stats:
 		self.myMsgPercentage = 0
 		self.wordCloudBuilder = WordCloudBuilder()
 		self.statsName = ""
+		self.messageDistribution = None
 
 	def build(self, filename, writeDebugLog = False):
 		self.statsName = filename[:-4]
@@ -114,6 +115,23 @@ class Stats:
 
 		return timeline
 
+	def buildMessageDistribution(self):
+		if self.messageDistribution is not None:
+			return self.messageDistribution
+
+		distribution = {}
+
+		for msg in self.messages:
+			date = str(msg._datetime.date())
+			date
+			if date in distribution.keys():
+				distribution[date] += 1
+			else:
+				distribution[date] = 1
+		self.messageDistribution = cols.OrderedDict(sorted(distribution.items()))
+		return self.messageDistribution
+
+
 	def buildTotalWordCloud(self, out = None):
 		words = self.wordCloudBuilder.generateWordsCloud(self.messages)
 		if out is not None:
@@ -164,21 +182,12 @@ class Stats:
 			out.write("\nTimeline of messages: " + plotUrl + "\n")
 
 	def plotMessageDistribution(self, out = None):
-		distribution = {}
-
-		for msg in self.messages:
-			date = str(msg._datetime.date())
-			date
-			if date in distribution.keys():
-				distribution[date] += 1
-			else:
-				distribution[date] = 1
-		sortedDistribution = cols.OrderedDict(sorted(distribution.items()))
+		distr = self.buildMessageDistribution()
 
 		data = Data([
    			Scatter(
-        		x=sortedDistribution.keys(),
-        		y=sortedDistribution.values()
+        		x=distr.keys(),
+        		y=distr.values()
     		)
 		])
 		name = 'Message distribution ' + self.statsName
@@ -187,15 +196,21 @@ class Stats:
 		if out is not None:
 			out.write("message distribution plot: " + plotUrl + "\n")
 
-	def plotMessageTimeDistribution(self):
-		# build days array
-		days = set([])
-		for msg in messages:
-			days.add(msg._datetime.date())
+	def plotMessageTimeDistribution(self, out = None):
+		distr = self.buildMessageDistribution()
 
+		# build timeline per day
+		# hour1:
+		#	date1: messageCount
+		#	date2: messageCount
+		# hour2:
+		#	date1: messageCount
+		#	date2: messageCount
 		hours = {}
 		for hour in range(0,24):
 			distribution = {}
+			for day in distr.keys():
+				distribution[day] = 0
 
 			for msg in self.messages:
 				if msg._datetime.hour == hour:
@@ -206,14 +221,58 @@ class Stats:
 						distribution[date] = 1
 			hours[hour] = cols.OrderedDict(sorted(distribution.items()))
 
-		print hours
+		# now count per day percentage
+		for date in distr:
+			for hour in hours.keys():
+				hours[hour][date] /= float(distr[date]) / 100.0
+
+		# and sum from the lowest to the highest
+		for date in distr:
+			for hour in hours.keys()[1:]:
+				hours[hour][date] += hours[hour - 1][date]
+
+
+		tracers = []
+		for hour in hours.keys():
+			trace = Scatter(
+				x = hours[hour].keys(),
+				y = hours[hour].values(),
+				mode = 'lines',
+				line = Line(
+					width = 0.5
+				),
+				fill = 'tonexty'
+			)
+			tracers.append(trace)
+
+		data = Data(tracers)
+		layout = Layout(
+    		showlegend=True,
+    		xaxis=XAxis(
+        		type='category',
+    		),
+    		yaxis=YAxis(
+        		type='linear',
+        		range=[1, 100],
+        		dtick=20,
+        		ticksuffix='%'
+    		)
+		)
+		fig = Figure(data=data, layout=layout)
+		plotUrl = self.__plot(fig, "Message time distribution " + self.statsName)
+
+		if out is not None:
+			out.write("Message time distribution plot: " + plotUrl)
+
+		return plotUrl
 
 
 	def __plot(self, data, name):
 		try:
 			return pl.plot(data, fileopt='overwrite', auto_open=False, filename=name)
-		except plotly.exceptions.PlotlyError:
+		except plotly.exceptions.PlotlyError as pe:
 			print "Plotly error"
+			print pe
 			return "Not builded"
 
 # This module can be used as standalone script
@@ -222,7 +281,15 @@ if __name__ == '__main__':
 
 	paramsNum = len(sys.argv)
 	if paramsNum < 2:
-		print "Filename not specified. Use it as a first parameter"
+		print "Statistics builder for csv format from viber"
+		print "Usage: python stats.py [params] filename"
+		print "Avalable params:"
+		print "-all 								Build all statistics"
+		print "-nd, -NoDebug:						Don't build debug output with log"
+		print "-wc, -WordsCloud:					Build words cloud (slow)"
+		print "-ptm, -PlotTimeline:					Build timeline plot for whole chat"
+		print "-pmd, -PlotMessageDistribution: 			Build messages distribution per days plot"
+		print "-ptmd, -PlotTimeMessageDistribution: 			Build message times distribution per days plot"
 		exit()
 
 	filename = sys.argv[paramsNum - 1]
@@ -236,9 +303,10 @@ if __name__ == '__main__':
 		if arg == '-all':
 			print 'All stats forced'
 			buildDebug = True
-			buildWordCloud = True
+			buildWordsCloud = True
 			plotTimeline = True
 			plotMessageDistribution = True
+			plotTimeMessageDistribution = True
 
 		if arg == '-nd' or arg == '-NoDebug':
 			print 'Debug output is turned off'
@@ -248,11 +316,11 @@ if __name__ == '__main__':
 			print 'Words cloud will be builded'
 			buildWordsCloud = True
 
-		if arg == '-ptm' or arg == '-PlotTimeline'
+		if arg == '-ptm' or arg == '-PlotTimeline':
 			print 'Timeline will be plotted'
 			plotTimeline = True
 
-		if arg = '-pmd' or arg == '-PlotMessageDistribution'
+		if arg == '-pmd' or arg == '-PlotMessageDistribution':
 			print 'MessageDistribution will be plotted'
 			plotMessageDistribution = True
 
@@ -275,8 +343,9 @@ if __name__ == '__main__':
 		stats.plotMessageDistribution(out)
 
 	if plotTimeMessageDistribution:
+		out.write("\n\n")
 		print "Plotting messages time distribution..."
-		stats.plotMessageTimeDistribution()
+		stats.plotMessageTimeDistribution(out)
 
 	if buildWordsCloud:
 		print "Building total words cloud..."
