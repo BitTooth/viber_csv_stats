@@ -121,9 +121,13 @@ class Stats:
 
 		distribution = {}
 
+		date = self.firstMessage._datetime.date()
+		while date <= self.lastMessage._datetime.date():
+			distribution[str(date)] = 0
+			date += datetime.timedelta(days=1)
+
 		for msg in self.messages:
 			date = str(msg._datetime.date())
-			date
 			if date in distribution.keys():
 				distribution[date] += 1
 			else:
@@ -224,7 +228,10 @@ class Stats:
 		# now count per day percentage
 		for date in distr:
 			for hour in hours.keys():
-				hours[hour][date] /= float(distr[date]) / 100.0
+				if distr[date] <> 0:
+					hours[hour][date] /= float(distr[date]) / 100.0
+				else:
+					hours[hour][date] = 0
 
 		# and sum from the lowest to the highest
 		for date in distr:
