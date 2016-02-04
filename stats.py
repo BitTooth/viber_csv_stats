@@ -1,10 +1,12 @@
-from csv_parser import buildMessagesArray
+import csv_parser
+import sql_out_parser
 import operator
 import datetime
 import plotly.plotly as pl
 from plotly.graph_objs import *
 import plotly.exceptions
 import collections as cols
+from messages import *
 
 class WordCloudBuilder:
 	def __init__(self):
@@ -62,10 +64,22 @@ class Stats:
 		self.statsName = ""
 		self.messageDistribution = None
 
-	def build(self, filename, writeDebugLog = False):
+	def build(self, filename, db_filename = None, writeDebugLog = False):
 		self.statsName = filename[:-4]
 		self.builded = True
-		self.messages = buildMessagesArray(filename, writeDebugLog)
+		messages1 = csv_parser.buildMessagesArray(filename, writeDebugLog)
+
+		if db_filename is None:
+			self.messages = messages1
+		else:
+			messages2 = sql_out_parser.buildMessagesArray(db_filename, writeDebugLog)
+			self.messages = makeUnitedArray(messages1, messages2)
+
+			if writeDebugLog:
+				f = open('debug_res.txt', 'w')
+				for msg in self.messages:
+					msg.out(f, True)
+
 
 		self.firstMessage = self.messages[0]
 		self.lastMessage = self.messages[0]
@@ -297,15 +311,18 @@ if __name__ == '__main__':
 		print "-ptm, -PlotTimeline:					Build timeline plot for whole chat"
 		print "-pmd, -PlotMessageDistribution: 			Build messages distribution per days plot"
 		print "-ptmd, -PlotTimeMessageDistribution: 			Build message times distribution per days plot"
+		print "-usedb, -useDatabaseFile:			Use additional info from database extracted file"
 		exit()
 
 	filename = sys.argv[paramsNum - 1]
+	db_filename = None
 
 	buildDebug = True
 	buildWordsCloud = False
 	plotTimeline = False
 	plotMessageDistribution = False
 	plotTimeMessageDistribution = False
+	useDB = False
 	for arg in sys.argv[1:-1]:
 		if arg == '-all':
 			print 'All stats forced'
@@ -335,10 +352,17 @@ if __name__ == '__main__':
 			print 'Message time distribution will be plotted'
 			plotTimeMessageDistribution = True
 
+		if arg == '-usedb' or arg == '-useDatabaseFile':
+			print 'Using additional database file'
+			useDB = True
+
+	if (useDB):
+		db_filename = sys.argv[paramsNum - 2]
+
 	out = open("stats_" + filename[:-4] + ".txt", "w")
 	stats = Stats()
 	print "Building simple stats..."
-	stats.build(filename, buildDebug)
+	stats.build(filename, db_filename, writeDebugLog=buildDebug)
 	stats.printSimpleStats(out)
 
 	if plotTimeline:

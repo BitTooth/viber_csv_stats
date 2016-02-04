@@ -1,20 +1,9 @@
 import csv
 import datetime
-
-class Message:
-	def __init__(self, author, date, time, message):
-		self._author = author
-		self._datetime = datetime.datetime.strptime(date + ' ' + time, "%d/%m/%Y %H:%M:%S")
-		self._message = message
-
-def isDateField(field):
-	try:
-		datetime.datetime.strptime(field, '%d/%m/%Y')
-		return True
-	except ValueError:
-		return False
+from messages import *
 
 def buildMessagesArray(filename, debugOutput = False):
+	print 'Building array from csv'
 	messages = [] 		
 	prevMessage = None 	# previous message used for concat multiline messages
 
@@ -31,7 +20,7 @@ def buildMessagesArray(filename, debugOutput = False):
 			# Use first date field as indicator of new message. Yeah, it's a little bit hacky
 			if not isDateField(values[0]) and prevMessage is not None:
 				for value in values:
-					prevMessage._message.join(' ' + value + '\n')
+					prevMessage._message.join(' ' + value.decode('string-escape').decode("utf-8") + '\n')
 			else:
 				date = row[0]
 				time = row[1]
@@ -42,14 +31,13 @@ def buildMessagesArray(filename, debugOutput = False):
 					message = message + ', ' + value
 				message = message + '\n'
 
-				msg = Message(author, date, time, message[2:])
+				msg = Message(author, date, time, message[2:].decode('string-escape').decode("utf-8"))
 				prevMessage = msg
 				messages.append(msg)
 
 	if debugOutput:
 		out = open ("debug.txt", "w")
 		for msg in messages:
-			out.write(str(msg._datetime) + '\n' + msg._author + '\n' + msg._message)
-			out.write("\n=========================================================================\n")
+			msg.out(out, True)
 
 	return messages
