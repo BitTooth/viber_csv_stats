@@ -80,3 +80,4 @@ SELECT
 	EventInfo.Body
 FROM EventInfo 
 WHERE EventInfo.Number = '+375447233234';
+--WHERE (EventInfo.Number = '+375296025080'); -- OR (EventInfo.Number = '+375293831386') OR (EventInfo.Number = '+375259403483');

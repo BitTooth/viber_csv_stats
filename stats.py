@@ -6,6 +6,7 @@ import plotly.plotly as pl
 from plotly.graph_objs import *
 import plotly.exceptions
 import collections as cols
+from arguments import Arguments
 from messages import *
 
 class WordCloudBuilder:
@@ -64,21 +65,27 @@ class Stats:
 		self.statsName = ""
 		self.messageDistribution = None
 
-	def build(self, filename, db_filename = None, writeDebugLog = False):
-		self.statsName = filename[:-4]
+	def build(self, csv_names = None, db_names = None, writeDebugLog = False):
+		self.statsName = "Nastya"
 		self.builded = True
-		messages1 = csv_parser.buildMessagesArray(filename, writeDebugLog)
+		self.messages = []
 
-		if db_filename is None:
-			self.messages = messages1
-		else:
-			messages2 = sql_out_parser.buildMessagesArray(db_filename, writeDebugLog)
-			self.messages = makeUnitedArray(messages1, messages2)
+		if csv_names is not None:
+			for filename in csv_names:
+				print "reading ", filename
+				messages = csv_parser.buildMessagesArray(filename, writeDebugLog)
+				self.messages = makeUnitedArray(self.messages, messages)
 
-			if writeDebugLog:
-				f = open('debug_res.txt', 'w')
-				for msg in self.messages:
-					msg.out(f, True)
+		if db_names is not None:
+			for filename in db_names:
+				print "reading ", filename
+				messages = sql_out_parser.buildMessagesArray(filename, writeDebugLog)
+				self.messages = makeUnitedArray(self.messages, messages)
+
+		if writeDebugLog:
+			f = open('debug_res.txt', 'w')
+			for msg in self.messages:
+				msg.out(f, True)
 
 
 		self.firstMessage = self.messages[0]
@@ -296,73 +303,55 @@ class Stats:
 			print pe
 			return "Not builded"
 
+def parseNames(line):
+	return line.split('|') if line is not None else None
+
+def initCommandLineArgs():
+	args = Arguments()
+	args.addNewArg('force_all', '-all', 'Force building of all statistics', True)
+	args.addNewArg('no_debug', '-nd', "Don't build debug output", True)
+	args.addNewArg('words_cloud', '-wc', "Build words cloud (slow)", True)
+	args.addNewArg('timeline', '-ptm', "Build timeline plot fo whole chat", True)
+	args.addNewArg('distribution', '-pmd', "Build message distribution per day plot")
+	args.addNewArg('time_distribution', '-ptmd', "Build message times distribution per days plot", True)
+	args.addNewArg('database', '-db', "Use info from database extracted file. Files should be listed with | separator")
+	args.addNewArg('csv', '-csv', "Use info from csv files. Files should be listed using | separator")
+	args.addNewArg('help', 'help', "Show this page")
+	return args
+
 # This module can be used as standalone script
 if __name__ == '__main__':
 	import sys 		# Use this only in standalone mode
+	args = initCommandLineArgs()
 
 	paramsNum = len(sys.argv)
 	if paramsNum < 2:
-		print "Statistics builder for csv format from viber"
-		print "Usage: python stats.py [params] filename"
-		print "Avalable params:"
-		print "-all 								Build all statistics"
-		print "-nd, -NoDebug:						Don't build debug output with log"
-		print "-wc, -WordsCloud:					Build words cloud (slow)"
-		print "-ptm, -PlotTimeline:					Build timeline plot for whole chat"
-		print "-pmd, -PlotMessageDistribution: 			Build messages distribution per days plot"
-		print "-ptmd, -PlotTimeMessageDistribution: 			Build message times distribution per days plot"
-		print "-usedb, -useDatabaseFile:			Use additional info from database extracted file"
-		exit()
+		args.printHelp()
 
-	filename = sys.argv[paramsNum - 1]
-	db_filename = None
+	args.parseArgs(sys.argv[1:], True)
 
-	buildDebug = True
-	buildWordsCloud = False
-	plotTimeline = False
-	plotMessageDistribution = False
-	plotTimeMessageDistribution = False
-	useDB = False
-	for arg in sys.argv[1:-1]:
-		if arg == '-all':
-			print 'All stats forced'
-			buildDebug = True
-			buildWordsCloud = True
-			plotTimeline = True
-			plotMessageDistribution = True
-			plotTimeMessageDistribution = True
+	csv_names = parseNames(args.getValue('csv'))
+	db_names = parseNames(args.getValue('database'))
 
-		if arg == '-nd' or arg == '-NoDebug':
-			print 'Debug output is turned off'
-			buildDebug = False
+	buildDebug = not args.getValue('no_debug')
+	buildWordsCloud = args.getValue('words_cloud')
+	plotTimeline = args.getValue('timeline')
+	plotMessageDistribution = args.getValue('distribution')
+	plotTimeMessageDistribution = args.getValue('time_distribution')
 
-		if arg == '-wc' or arg == '-WordsCloud':
-			print 'Words cloud will be builded'
-			buildWordsCloud = True
+	if args.getValue('force_all'):
+		print 'All stats forced'
+		buildDebug = True
+		buildWordsCloud = True
+		plotTimeline = True
+		plotMessageDistribution = True
+		plotTimeMessageDistribution = True
 
-		if arg == '-ptm' or arg == '-PlotTimeline':
-			print 'Timeline will be plotted'
-			plotTimeline = True
-
-		if arg == '-pmd' or arg == '-PlotMessageDistribution':
-			print 'MessageDistribution will be plotted'
-			plotMessageDistribution = True
-
-		if arg == '-ptmd' or arg == '-PlotTimeMessageDistribution':
-			print 'Message time distribution will be plotted'
-			plotTimeMessageDistribution = True
-
-		if arg == '-usedb' or arg == '-useDatabaseFile':
-			print 'Using additional database file'
-			useDB = True
-
-	if (useDB):
-		db_filename = sys.argv[paramsNum - 2]
-
-	out = open("stats_" + filename[:-4] + ".txt", "w")
+	out = open("stats_{0}.txt".format(csv_names[0][:-4]), "w")
 	stats = Stats()
+
 	print "Building simple stats..."
-	stats.build(filename, db_filename, writeDebugLog=buildDebug)
+	stats.build(csv_names, db_names, writeDebugLog=buildDebug)
 	stats.printSimpleStats(out)
 
 	if plotTimeline:

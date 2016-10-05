@@ -1,10 +1,40 @@
 # coding: utf8
 from messages import *
 import codecs
+import sqlite3
 
 f = open('names.conf')
 myName = f.readline()[:-1]
 partnerName = f.readline()[:-1]
+
+
+def readDatabase(filename, debugOutput=False):
+	connection = sqlite3.connect(filename)
+	cursor = connection.cursor()
+
+	query = '''
+		SELECT
+			EventInfo.TimeStamp,
+			EventInfo.Direction,
+			EventInfo.Number,
+			EventInfo.Body
+		FROM EventInfo 
+		WHERE EventInfo.Number = '+375447233234';
+	'''
+	cursor.execute(query, ())
+	data = cursor.fetchall()
+
+	lines = []
+	for line in data:
+		lines.append("{0}|{1}|{2}|{3}".format(line[0], line[1], line[2], line[3]))
+
+	if debugOutput:
+		f = open("debug_{0}.txt".format(filename))
+		for l in lines:
+			f.write(l + '\n')
+		f.close()
+
+	connection.close()
 
 def buildMessagesArray(filename, debugOutput = False):
 	print 'Building array from db'
@@ -45,3 +75,4 @@ def buildMessagesArray(filename, debugOutput = False):
 
 if __name__ == '__main__':
 	array = buildMessagesArray('messages.log', True)
+	#readDatabase('viber_my.db', True)
